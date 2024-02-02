@@ -6,3 +6,42 @@ related:: Classes/Document
 DESCRIPTION::
 Is this already implemented?
 Please fill in details...
+
+CLASSMETHODS::
+
+method:: current
+
+code::
+ScelDocument.current
+::
+
+INSTANCEMETHODS::
+
+method:: text
+method:: string
+method:: currentLine
+method:: currentWord
+
+method:: currentString
+
+INSTANCEVARIABLES::
+
+method:: currentString
+holds the current content of file. The 'currentness' is selected by teletype::text, string, currentLine, currentWord, rangeText::.
+
+
+
+//tieto dve su asi rovnake
+a.text
+a.string
+// stale treba volat:
+a.currentString
+
+a.currentLine
+a.currentString
+
+a.currentWord
+a.currentString
+
+a.rangeText(10,78)
+a.currentString
