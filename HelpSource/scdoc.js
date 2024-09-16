@@ -167,7 +167,6 @@ function set_up_toc() {
       $("#toc_search").focus();
     }
   });
-<<<<<<< Updated upstream
 
   $("#toc_search").on("keydown", function (event) {
     if (event.key === "Escape") {
@@ -189,8 +188,6 @@ function set_up_toc() {
       $("#toc").scrollTop($("#toc").scrollTop() - 10);
     }
   });
-=======
->>>>>>> Stashed changes
 }
 
 function fixTOC() {
