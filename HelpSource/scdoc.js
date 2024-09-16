@@ -214,11 +214,7 @@ function fixTOC() {
   create_menubar_item("Indexes \u25bc", "#", function (a, li) {
     var indexes_menu = $("<div>", { class: "submenu" }).hide().appendTo(li);
 
-<<<<<<< Updated upstream
     var nav_items = ["Documents", "Classes", "ClassTree", "Methods"];
-=======
-    var nav_items = ["Documents", "Classes", "Methods"];
->>>>>>> Stashed changes
     nav_items.forEach(function (item) {
       $("<a>", {
         text: item,
@@ -238,11 +234,8 @@ function fixTOC() {
     });
   });
 
-<<<<<<< Updated upstream
   buildThemeSwitcher();
 
-=======
->>>>>>> Stashed changes
   if ($("#toc").length) {
     set_up_toc();
   }
@@ -395,7 +388,6 @@ document.addEventListener("DOMContentLoaded", function () {
     },
   );
 });
-<<<<<<< Updated upstream
 
 function renderTex() {
   for (let aSpan of document.getElementsByClassName("math")) {
@@ -410,5 +402,3 @@ function renderTex() {
 window.addEventListener("DOMContentLoaded", function () {
   renderTex();
 });
-=======
->>>>>>> Stashed changes
