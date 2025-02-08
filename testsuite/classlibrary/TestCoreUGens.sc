@@ -39,7 +39,7 @@ TestCoreUGens : UnitTest {
 			"Line.kr can match LFSaw.kr" -> {Line.kr(0,1,1) - LFSaw.kr(0.5)},
 			"Line can match crossfaded DC" -> {Line.ar(0,1,1) - LinXFade2.ar(DC.ar(0), DC.ar(1), Line.ar(-1,1,1))},
 			// (Integrator goes a bit off ramp cos of roundoff error accumulations)
-			"Line.ar can match integrated DC" -> {Line.ar(0,1,1) - Integrator.ar(DC.ar(SampleDur.ir))},
+			"Line.ar can match integrated DC" -> {Line.ar(SampleDur.ir,1,1) - Integrator.ar(DC.ar(SampleDur.ir))},
 			"Line.ar can match EnvGen.ar with slope Env" -> {Line.ar - EnvGen.ar(Env([0,1],[1]))},
 
 			//////////////////////////////////////////
@@ -266,7 +266,7 @@ TestCoreUGens : UnitTest {
 			[\squared, \sqrt],
 			[\cubed, { |x| x ** (1/3) }],
 			[\exp, \log],
-			[\midicps, \cpsmidi],
+			[\midicps, \cpsmidi], // this test currently limits passing tolerance for all tests
 			[\midiratio, \ratiomidi],
 			[\dbamp, \ampdb],
 			[\octcps, \cpsoct],
@@ -275,18 +275,14 @@ TestCoreUGens : UnitTest {
 			[\tan, \atan]
 		].do { |selectors|
 			[selectors, selectors.reverse].do { |pair|
-				tests = tests.add(
-					"x == %(%(x)) [control rate]".format(*pair) -> {
-						var n = WhiteNoise.kr.range(0.3, 0.9);
-						n - pair[1].applyTo(pair[0].applyTo(n))
-					}
-				);
-				tests = tests.add(
-					"x == %(%(x)) [audio rate]".format(*pair) -> {
-						var n = WhiteNoise.ar.range(0.3, 0.9);
-						n - pair[1].applyTo(pair[0].applyTo(n))
-					}
-				)
+				[\ar, \kr].do{ |rate|
+					tests.add(
+						"x == %(%(x)) [%]".format(pair[0], pair[1], rate) -> {
+							var n = WhiteNoise.perform(rate).range(0.3, 0.9);
+							n - pair[1].applyTo(pair[0].applyTo(n))
+						}
+					);
+				}
 			}
 		};
 
@@ -296,26 +292,19 @@ TestCoreUGens : UnitTest {
 		[
 			[DelayN, BufDelayN],
 			[DelayL, BufDelayL],
-			//	[DelayC, BufDelayC] // not equivalent, FIXME
+			// [DelayC, BufDelayC] // not equivalent, FIXME
 		].do { |classes|
-			tests = tests.add(
-				"% == % [control rate]".format(classes[0], classes[1]) -> {
-					var sig = SinOsc.ar + 1;
-					var delayTime = WhiteNoise.kr.range(0, 0.002);
-					var delay = classes[0].ar(sig, 0.02, delayTime);
-					var bufdelay = classes[1].ar(LocalBuf.new(0.02 * SampleRate.ir * 2), sig, delayTime);
-					delay - bufdelay
-				}
-			);
-			tests = tests.add(
-				"% == % [audio rate]".format(classes[0], classes[1]) -> {
-					var sig = SinOsc.ar + 1;
-					var delayTime = WhiteNoise.ar.range(0, 0.002);
-					var delay = classes[0].ar(sig, 0.02, delayTime);
-					var bufdelay = classes[1].ar(LocalBuf.new(0.02 * SampleRate.ir * 2), sig, delayTime);
-					delay - bufdelay
-				}
-			);
+			[\ar, \kr].do{ |rate|
+				tests.add(
+					"% == % [%]".format(classes[0], classes[1], rate) -> {
+						var sig = SinOsc.perform(rate) + 1;
+						var delayTime = WhiteNoise.perform(rate).range(0, 0.005);
+						var delay = classes[0].perform(rate, sig, 0.02, delayTime);
+						var bufdelay = classes[1].perform(rate, LocalBuf.new(0.02 * SampleRate.ir * 2), sig, delayTime);
+						delay - bufdelay
+					}
+				);
+			}
 		};
 
 		server.bootSync;
@@ -323,7 +312,9 @@ TestCoreUGens : UnitTest {
 
 		tests.keysValuesDo { |name, func, i|
 			func.loadToFloatArray(testDur, server, { |data|
-				this.assertArrayFloatEquals(data, 0, name.quote, within: 0.001, report: true);
+				this.assertArrayFloatEquals(data, 0, name.quote,
+					within: -90.dbamp, // could go to -100 if not for midicps(cpsmidi()) test
+					report: true);
 				completed = completed + 1;
 				cond.signalOne;
 			});
@@ -362,7 +353,7 @@ TestCoreUGens : UnitTest {
 			});
 			server.sync;
 		};
-		"timing out after % sec\n".postf(tests.size * testDur);
+
 		testsFinished = cond.waitFor((1.5 * tests.size * testDur).max(minTimeOut), { completed == tests.size });
 		this.assert(testsFinished, "TIMEOUT: exact_convergence tests", report: false);
 	}
@@ -846,13 +837,14 @@ TestCoreUGens : UnitTest {
 		server.bootSync;
 
 		[\ar, \kr].do{ |rate|
-			var period, freq, halfPeriod, iPhase, target, ugen, phaseRange;
+			var period, period_sec, freq, halfPeriod, iPhase, target, ugen, phaseRange;
 			var fs = switch(rate,
 				\ar, { server.sampleRate },
 				\kr, { server.sampleRate / server.options.blockSize }
 			);
 
 			period = 10; // oscillator period, in samples (should be even)
+			period_sec = period / fs; // oscillator period, in seconds
 			freq = fs / period;
 			halfPeriod = period / 2;
 
@@ -932,6 +924,26 @@ TestCoreUGens : UnitTest {
 					cond.wait;
 				}
 			};
+
+			// EnvGen, standard Env and using Env:*circle and Env:-circle
+			target = 42; // first output sample should be the first level of the Env
+			[
+				Env([target, target*100], period_sec),
+				Env([target, target*100], period_sec).circle(period_sec),
+				Env.circle([target, target*100], [period_sec, period_sec])
+			].do{ |env, i|
+				{
+					EnvGen.perform(rate, env);
+				}.loadToFloatArray(period_sec * 1.5, server, { |data|
+					data.postln;
+					this.assertFloatEquals(data[0], target,
+						"EnvGen's first sample, should be its first level [%, env %]".format(rate, i),
+						within: tolerance, report: false
+					);
+					cond.signalOne;
+				});
+				cond.wait;
+			}
 		}
 	}
 

@@ -163,11 +163,7 @@ void PostWindow::applySettings(Settings::Manager* settings) {
     QFontMetrics metrics(font);
     QString stringOfSpaces(settings->value("IDE/editor/indentWidth").toInt(), QChar(' '));
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
     setTabStopDistance(metrics.horizontalAdvance(stringOfSpaces));
-#else
-    setTabStopWidth(metrics.width(stringOfSpaces));
-#endif
 
     updateActionShortcuts(settings);
 }
@@ -355,7 +351,9 @@ PostDocklet::PostDocklet(QWidget* parent): Docklet(tr("Post window"), parent) {
     mPostWindow = new PostWindow;
     setWidget(mPostWindow);
 
+    // This adds the QAction defined in PostWindow::createActions to the toolbar attached to the post window.
     toolBar()->addAction(mPostWindow->mActions[PostWindow::AutoScroll]);
+    toolBar()->addAction(mPostWindow->mActions[PostWindow::Clear]);
 
     // connect(this, SIGNAL(topLevelChanged(bool)), this, SLOT(onFloatingChanged(bool)));
 }
